@@ -171,6 +171,26 @@ test("selector state", function() {
 	);
 });
 
+test( "globalEval", function() {
+
+	expect( 3 );
+
+	jQuery.globalEval( "var globalEvalTest = true;" );
+	ok( window.globalEvalTest, "Test variable declarations are global" );
+
+	window.globalEvalTest = false;
+
+	jQuery.globalEval( "globalEvalTest = true;" );
+	ok( window.globalEvalTest, "Test variable assignments are global" );
+
+	window.globalEvalTest = false;
+
+	jQuery.globalEval( "this.globalEvalTest = this;" );
+	same( window.globalEvalTest, window, "Test context is the window object" )
+
+	window.globalEvalTest = undefined;
+});
+
 if ( !isLocal ) {
 test("browser", function() {
 	stop();
@@ -1143,16 +1163,16 @@ test("jQuery.sub() - Static Methods", function(){
         }
     });
     Subclass.fn.extend({subClassMethod: function() { return this;}});
-    
+
     //Test Simple Subclass
     ok(Subclass.topLevelMethod() === false, 'Subclass.topLevelMethod thought debug was true');
     ok(Subclass.config.locale == 'en_US', Subclass.config.locale + ' is wrong!');
     same(Subclass.config.test, undefined, 'Subclass.config.test is set incorrectly');
     equal(jQuery.ajax, Subclass.ajax, 'The subclass failed to get all top level methods');
-        
+
     //Create a SubSubclass
     var SubSubclass = Subclass.sub();
-    
+
     //Make Sure the SubSubclass inherited properly
     ok(SubSubclass.topLevelMethod() === false, 'SubSubclass.topLevelMethod thought debug was true');
     ok(SubSubclass.config.locale == 'en_US', SubSubclass.config.locale + ' is wrong!');
@@ -1169,7 +1189,7 @@ test("jQuery.sub() - Static Methods", function(){
     ok(SubSubclass.config.locale == 'es_MX', SubSubclass.config.locale + ' is wrong!');
     ok(SubSubclass.config.test == 'worked', 'SubSubclass.config.test is set incorrectly');
     notEqual(jQuery.ajax, SubSubclass.ajax, 'The subsubclass failed to get all top level methods');
-    
+
     //This shows that the modifications to the SubSubClass did not bubble back up to it's superclass
     ok(Subclass.topLevelMethod() === false, 'Subclass.topLevelMethod thought debug was true');
     ok(Subclass.config.locale == 'en_US', Subclass.config.locale + ' is wrong!');
