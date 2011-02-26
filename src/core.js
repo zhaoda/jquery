@@ -568,7 +568,7 @@ jQuery.extend({
 		if ( data && rnotwhite.test( data ) ) {
 			// We use execScript on Internet Explorer
 			// We use an anonymous function so that context is window
-			// not the globalEval method itself as is the case in Firefox
+			// rather than jQuery in Firefox
 			( window.execScript || function( data ) {
 				window[ "eval" ].call( window, data );
 			} )( data );
