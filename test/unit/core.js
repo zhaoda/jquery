@@ -186,7 +186,7 @@ test( "globalEval", function() {
 	window.globalEvalTest = false;
 
 	jQuery.globalEval( "this.globalEvalTest = this;" );
-	same( window.globalEvalTest, window, "Test context is the window object" )
+	same( window.globalEvalTest, window, "Test context is the window object" );
 
 	window.globalEvalTest = undefined;
 });
@@ -574,8 +574,8 @@ test("toArray()", function() {
 	expect(1);
 	same( jQuery("#main p").toArray(),
 		q("firstp","ap","sndp","en","sap","first"),
-		"Convert jQuery object to an Array" )
-})
+		"Convert jQuery object to an Array" );
+});
 
 test("get(Number)", function() {
 	expect(2);
@@ -587,7 +587,7 @@ test("get(-Number)",function() {
 	expect(2);
 	equals( jQuery("p").get(-1), document.getElementById("first"), "Get a single element with negative index" );
 	strictEqual( jQuery("#firstp").get(-2), undefined, "Try get with index negative index larger then elements count" );
-})
+});
 
 test("each(Function)", function() {
 	expect(1);
