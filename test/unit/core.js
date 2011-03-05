@@ -185,8 +185,8 @@ test( "globalEval", function() {
 
 	window.globalEvalTest = false;
 
-	jQuery.globalEval( "this.globalEvalTest = this;" );
-	same( window.globalEvalTest, window, "Test context is the window object" );
+	jQuery.globalEval( "this.globalEvalTest = true;" );
+	ok( window.globalEvalTest, "Test context (this) is the window object" );
 
 	window.globalEvalTest = undefined;
 });
