@@ -11,7 +11,22 @@ var elemdisplay = {},
 		[ "width", "marginLeft", "marginRight", "paddingLeft", "paddingRight" ],
 		// opacity animations
 		[ "opacity" ]
-	];
+	],
+	_effectsTimeStamp;
+
+// Function to re-initialize effects timestamp
+function reInitEffectsTimeStamp() {
+	_effectsTimeStamp = undefined;
+}
+
+// Function to synchronize now values between animations
+function effectsNow() {
+	if ( !_effectsTimeStamp ) {
+		_effectsTimeStamp = jQuery.now();
+		setTimeout( reInitEffectsTimeStamp, 0 );
+	}
+	return _effectsTimeStamp;
+}
 
 jQuery.fn.extend({
 	show: function( speed, easing, callback ) {
@@ -349,7 +364,7 @@ jQuery.fx.prototype = {
 		var self = this,
 			fx = jQuery.fx;
 
-		this.startTime = jQuery.now();
+		this.startTime = effectsNow();
 		this.start = from;
 		this.end = to;
 		this.unit = unit || this.unit || ( jQuery.cssNumber[ this.prop ] ? "" : "px" );
@@ -394,7 +409,7 @@ jQuery.fx.prototype = {
 
 	// Each step of an animation
 	step: function( gotoEnd ) {
-		var t = jQuery.now(), done = true;
+		var t = effectsNow(), done = true;
 
 		if ( gotoEnd || t >= this.options.duration + this.startTime ) {
 			this.now = this.end;
