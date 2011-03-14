@@ -12,20 +12,17 @@ var elemdisplay = {},
 		// opacity animations
 		[ "opacity" ]
 	],
-	_effectsTimeStamp;
+	fxNow;
 
 // Function to re-initialize effects timestamp
-function reInitEffectsTimeStamp() {
-	_effectsTimeStamp = undefined;
+function clearFxNow() {
+	fxNow = undefined;
 }
 
 // Function to synchronize now values between animations
-function effectsNow() {
-	if ( !_effectsTimeStamp ) {
-		_effectsTimeStamp = jQuery.now();
-		setTimeout( reInitEffectsTimeStamp, 0 );
-	}
-	return _effectsTimeStamp;
+function createFxNow() {
+	setTimeout( clearFxNow, 0 );
+	return ( fxNow = jQuery.now() );
 }
 
 jQuery.fn.extend({
@@ -364,7 +361,7 @@ jQuery.fx.prototype = {
 		var self = this,
 			fx = jQuery.fx;
 
-		this.startTime = effectsNow();
+		this.startTime = fxNow || createFxNow();
 		this.start = from;
 		this.end = to;
 		this.unit = unit || this.unit || ( jQuery.cssNumber[ this.prop ] ? "" : "px" );
@@ -409,7 +406,7 @@ jQuery.fx.prototype = {
 
 	// Each step of an animation
 	step: function( gotoEnd ) {
-		var t = effectsNow(), done = true;
+		var t = fxNow || createFxNow(), done = true;
 
 		if ( gotoEnd || t >= this.options.duration + this.startTime ) {
 			this.now = this.end;
