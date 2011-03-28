@@ -75,14 +75,10 @@ jQuery.support = (function() {
 		submitBubbles: true,
 		changeBubbles: true,
 		deleteExpando: true,
-		//optDisabled: false,
-		//checkClone: false,
 		noCloneEvent: true,
-		//noCloneChecked: true,
-		//boxModel: ,
 		inlineBlockNeedsLayout: false,
-		shrinkWrapBlocks: false
-		//reliableHiddenOffsets: true
+		shrinkWrapBlocks: false,
+		reliableMarginRight: true
 	};
 
 	// Make sure checked status is properly cloned
@@ -176,10 +172,22 @@ jQuery.support = (function() {
 	// Check if empty table cells still have offsetWidth/Height
 	// (IE < 8 fail this test)
 	support.reliableHiddenOffsets = isSupported && ( tds[ 0 ].offsetHeight === 0 );
+	div.innerHTML = "";
+
+	// Check if div with explicit width and no margin-right incorrectly
+	// gets computed margin-right based on width of container. For more
+	// info see bug #3333
+	// Fails in WebKit before Feb 2011 nightlies
+	// WebKit Bug 13343 - getComputedStyle returns wrong value for margin-right
+	if ( document.defaultView && document.defaultView.getComputedStyle ) {
+		div.style.width = "1px";
+		div.style.marginRight = "0";
+		jQuery.support.reliableMarginRight =
+			( parseInt( document.defaultView.getComputedStyle(div).marginRight, 10 ) || 0 ) === 0;
+	}
 
 	// Remove the body element we added
 	document.documentElement.removeChild( body );
-	div.innerHTML = "";
 
 	// Technique from Juriy Zaytsev
 	// http://thinkweb2.com/projects/prototype/detecting-event-support-without-browser-sniffing/
