@@ -31,16 +31,9 @@ test("class - jQuery only", function() {
 });
 
 test("attributes - jQuery only", function() {
-	expect( 6 );
+	expect( 5 );
 
 	t( "Find elements with a tabindex attribute", "[tabindex]", ["listWithTabIndex", "foodWithNegativeTabIndex", "linkWithTabIndex", "linkWithNegativeTabIndex", "linkWithNoHrefWithTabIndex", "linkWithNoHrefWithNegativeTabIndex"] );
-
-	// #12523
-	deepEqual(
-		jQuery.find( "[title]", null, null, jQuery("#qunit-fixture a").get().concat( document.createTextNode("") ) ),
-		q("google"),
-		"Text nodes fail attribute tests without exception"
-	);
 
 	// #12600
 	ok(
@@ -80,20 +73,8 @@ test("disconnected nodes - jQuery only", function() {
 	equal( $opt.is(":selected"), true, "selected option" );
 });
 
-test("jQuery only - broken", 1, function() {
-	raises(function() {
-		// Setting context to null here somehow avoids QUnit's window.error handling
-		// making the e & e.message correct
-		// For whatever reason, without this,
-		// Sizzle.error will be called but no error will be seen in oldIE
-		jQuery.call( null, " <div/> " );
-	}, function( e ) {
-		return (/syntax.err/i).test( e.message );
-	}, "leading space invalid: $(' <div/> ')" );
-});
-
 testIframe("selector/html5_selector", "attributes - jQuery.attr", function( jQuery, window, document ) {
-	expect( 35 );
+	expect( 38 );
 
 	/**
 	 * Returns an array of elements with the given IDs
@@ -151,10 +132,10 @@ testIframe("selector/html5_selector", "attributes - jQuery.attr", function( jQue
 	t( "Attribute Exists", "[indeterminate]",  []);
 	t( "Attribute Exists", "[ismap]",          ["img1"]);
 	t( "Attribute Exists", "[itemscope]",      ["div1"]);
-	// t( "Attribute Exists", "[loop]",           ["video1"]); // IE 6/7 cannot differentiate here. loop is also used on img, input, and marquee tags as well as video/audio. getAttributeNode unfortunately also retrieves the property value.
+	t( "Attribute Exists", "[loop]",           ["video1"]);
 	t( "Attribute Exists", "[multiple]",       ["select1"]);
 	t( "Attribute Exists", "[muted]",          ["audio1"]);
-	// t( "Attribute Exists", "[nohref]",         ["area1"]); // IE 6/7 keep this set to false regardless of presence. The attribute node is not retrievable.
+	t( "Attribute Exists", "[nohref]",         ["area1"]);
 	t( "Attribute Exists", "[noresize]",       ["textarea1"]);
 	t( "Attribute Exists", "[noshade]",        ["hr1"]);
 	t( "Attribute Exists", "[nowrap]",         ["td1", "div1"]);
@@ -176,7 +157,8 @@ testIframe("selector/html5_selector", "attributes - jQuery.attr", function( jQue
 	});
 	t( "Enumerated attribute", "[spellcheck]", ["span1"]);
 
-	// t( "tabindex selector does not retrieve all elements in IE6/7(#8473)", "form, [tabindex]", ["form1", "text1"] ); // sigh, FF12 QSA mistakenly includes video elements even though they have no tabindex attribute (see https://bugzilla.mozilla.org/show_bug.cgi?id=618737)
+	t( "tabindex selector does not retrieve all elements in IE6/7 (#8473)",
+		"form, [tabindex]", [ "form1", "text1" ] );
 	t( "Improperly named form elements do not interfere with form selections (#9570)", "form[name='formName']", ["form1"] );
 });
 

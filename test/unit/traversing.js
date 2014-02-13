@@ -24,19 +24,21 @@ test( "find(leading combinator)", function() {
 });
 
 test( "find(node|jQuery object)", function() {
-	expect( 12 );
+	expect( 13 );
 
 	var $foo = jQuery("#foo"),
 		$blog = jQuery(".blogTest"),
 		$first = jQuery("#first"),
 		$two = $blog.add( $first ),
+		$twoMore = jQuery("#ap").add( $blog ),
 		$fooTwo = $foo.add( $blog );
 
 	equal( $foo.find( $blog ).text(), "Yahoo", "Find with blog jQuery object" );
 	equal( $foo.find( $blog[ 0 ] ).text(), "Yahoo", "Find with blog node" );
 	equal( $foo.find( $first ).length, 0, "#first is not in #foo" );
 	equal( $foo.find( $first[ 0 ]).length, 0, "#first not in #foo (node)" );
-	ok( $foo.find( $two ).is(".blogTest"), "Find returns only nodes within #foo" );
+	deepEqual( $foo.find( $two ).get(), $blog.get(), "Find returns only nodes within #foo" );
+	deepEqual( $foo.find( $twoMore ).get(), $blog.get(), "...regardless of order" );
 	ok( $fooTwo.find( $blog ).is(".blogTest"), "Blog is part of the collection, but also within foo" );
 	ok( $fooTwo.find( $blog[ 0 ] ).is(".blogTest"), "Blog is part of the collection, but also within foo(node)" );
 
@@ -78,10 +80,29 @@ test("is(String|undefined)", function() {
 	ok( jQuery("#en").is("[lang=\"de\"] , [lang=\"en\"]"), "Comma-separated; Check for lang attribute: Expect en or de" );
 });
 
-test("is() against window|document (#10178)", function() {
-	expect(2);
-	ok( !jQuery(window).is("a"), "Checking is on a window does not throw an exception" );
-	ok( !jQuery(document).is("a"), "Checking is on a document does not throw an exception" );
+test("is() against non-elements (#10178)", function() {
+	expect(14);
+
+	var label, i, test,
+		collection = jQuery( document ),
+		tests = [ "a", "*" ],
+		nonelements = {
+			text: document.createTextNode(""),
+			comment: document.createComment(""),
+			document: document,
+			window: window,
+			array: [],
+			"plain object": {},
+			"function": function() {}
+		};
+
+	for ( label in nonelements ) {
+		collection[ 0 ] = nonelements[ label ];
+		for ( i = 0; i < tests.length; i++ ) {
+			test = tests[ i ];
+			ok( !collection.is( test ), label + " does not match \"" + test + "\"" );
+		}
+	}
 });
 
 test("is(jQuery)", function() {
@@ -122,15 +143,22 @@ test("is() with :has() selectors", function() {
 });
 
 test("is() with positional selectors", function() {
-	expect(24);
+	expect(27);
 
-	var html = jQuery(
-				"<p id='posp'><a class='firsta' href='#'><em>first</em></a><a class='seconda' href='#'><b>test</b></a><em></em></p>"
-			).appendTo( "#qunit-fixture" ),
-		isit = function(sel, match, expect) {
-			equal( jQuery( sel ).is( match ), expect, "jQuery('" + sel + "').is('" + match + "')" );
+	var
+		posp = jQuery(
+			"<p id='posp'><a class='firsta' href='#'><em>first</em></a>" +
+			"<a class='seconda' href='#'><b>test</b></a><em></em></p>"
+		).appendTo( "#qunit-fixture" ),
+		isit = function( sel, match, expect ) {
+			equal(
+				jQuery( sel ).is( match ),
+				expect,
+				"jQuery('" + sel + "').is('" + match + "')"
+			);
 		};
 
+	isit( "#posp", "p:last", true );
 	isit( "#posp", "#posp:first", true );
 	isit( "#posp", "#posp:eq(2)", false );
 	isit( "#posp", "#posp a:first", false );
@@ -159,6 +187,9 @@ test("is() with positional selectors", function() {
 	isit( "#posp em", "#posp a em:eq(2)", false );
 
 	ok( jQuery("#option1b").is("#select1 option:not(:first)"), "POS inside of :not() (#10970)" );
+
+	ok( jQuery( posp[0] ).is("p:last"), "context constructed from a single node (#13797)" );
+	ok( !jQuery( posp[0] ).find("#firsta").is("a:first"), "context derived from a single node (#13797)" );
 });
 
 test("index()", function() {
@@ -252,7 +283,11 @@ test("filter(jQuery)", function() {
 test("filter() with positional selectors", function() {
 	expect(19);
 
-	var html = jQuery( "" +
+	var filterit = function(sel, filter, length) {
+		equal( jQuery( sel ).filter( filter ).length, length, "jQuery( " + sel + " ).filter( " + filter + " )" );
+	};
+
+	jQuery( "" +
 		"<p id='posp'>" +
 			"<a class='firsta' href='#'>" +
 				"<em>first</em>" +
@@ -261,10 +296,7 @@ test("filter() with positional selectors", function() {
 				"<b>test</b>" +
 			"</a>" +
 			"<em></em>" +
-		"</p>" ).appendTo( "#qunit-fixture" ),
-		filterit = function(sel, filter, length) {
-			equal( jQuery( sel ).filter( filter ).length, length, "jQuery( " + sel + " ).filter( " + filter + " )" );
-		};
+		"</p>" ).appendTo( "#qunit-fixture" );
 
 	filterit( "#posp", "#posp:first", 1);
 	filterit( "#posp", "#posp:eq(2)", 0 );
@@ -397,50 +429,55 @@ test("not(jQuery)", function() {
 
 test("has(Element)", function() {
 	expect(3);
+	var obj, detached, multipleParent;
 
-	var obj = jQuery("#qunit-fixture").has(jQuery("#sndp")[0]);
+	obj = jQuery("#qunit-fixture").has(jQuery("#sndp")[0]);
 	deepEqual( obj.get(), q("qunit-fixture"), "Keeps elements that have the element as a descendant" );
 
-	var detached = jQuery("<a><b><i/></b></a>");
+	detached = jQuery("<a><b><i/></b></a>");
 	deepEqual( detached.has( detached.find("i")[0] ).get(), detached.get(), "...Even when detached" );
 
-	var multipleParent = jQuery("#qunit-fixture, #header").has(jQuery("#sndp")[0]);
-	deepEqual( obj.get(), q("qunit-fixture"), "Does not include elements that do not have the element as a descendant" );
+	multipleParent = jQuery("#qunit-fixture, #header").has(jQuery("#sndp")[0]);
+	deepEqual( multipleParent.get(), q("qunit-fixture"), "Does not include elements that do not have the element as a descendant" );
 });
 
 test("has(Selector)", function() {
 	expect( 5 );
 
-	var obj = jQuery("#qunit-fixture").has("#sndp");
+	var obj, detached, multipleParent, multipleHas;
+
+	obj = jQuery("#qunit-fixture").has("#sndp");
 	deepEqual( obj.get(), q("qunit-fixture"), "Keeps elements that have any element matching the selector as a descendant" );
 
-	var detached = jQuery("<a><b><i/></b></a>");
+	detached = jQuery("<a><b><i/></b></a>");
 	deepEqual( detached.has("i").get(), detached.get(), "...Even when detached" );
 
-	var multipleParent = jQuery("#qunit-fixture, #header").has("#sndp");
+	multipleParent = jQuery("#qunit-fixture, #header").has("#sndp");
 	deepEqual( multipleParent.get(), q("qunit-fixture"), "Does not include elements that do not have the element as a descendant" );
 
 	multipleParent = jQuery("#select1, #select2, #select3").has("#option1a, #option3a");
 	deepEqual( multipleParent.get(), q("select1", "select3"), "Multiple contexts are checks correctly" );
 
-	var multipleHas = jQuery("#qunit-fixture").has("#sndp, #first");
+	multipleHas = jQuery("#qunit-fixture").has("#sndp, #first");
 	deepEqual( multipleHas.get(), q("qunit-fixture"), "Only adds elements once" );
 });
 
 test("has(Arrayish)", function() {
 	expect(4);
 
-	var simple = jQuery("#qunit-fixture").has(jQuery("#sndp"));
+	var simple, detached, multipleParent, multipleHas;
+
+	simple = jQuery("#qunit-fixture").has(jQuery("#sndp"));
 	deepEqual( simple.get(), q("qunit-fixture"), "Keeps elements that have any element in the jQuery list as a descendant" );
 
-	var detached = jQuery("<a><b><i/></b></a>");
+	detached = jQuery("<a><b><i/></b></a>");
 	deepEqual( detached.has( detached.find("i") ).get(), detached.get(), "...Even when detached" );
 
-	var multipleParent = jQuery("#qunit-fixture, #header").has(jQuery("#sndp"));
+	multipleParent = jQuery("#qunit-fixture, #header").has(jQuery("#sndp"));
 	deepEqual( multipleParent.get(), q("qunit-fixture"), "Does not include elements that do not have an element in the jQuery list as a descendant" );
 
-	var multipleHas = jQuery("#qunit-fixture").has(jQuery("#sndp, #first"));
-	deepEqual( simple.get(), q("qunit-fixture"), "Only adds elements once" );
+	multipleHas = jQuery("#qunit-fixture").has(jQuery("#sndp, #first"));
+	deepEqual( multipleHas.get(), q("qunit-fixture"), "Only adds elements once" );
 });
 
 test("addBack()", function() {
@@ -457,6 +494,7 @@ test("siblings([String])", function() {
 	deepEqual( jQuery("#en").siblings().get(), q("sndp", "sap"), "Check for siblings" );
 	deepEqual( jQuery("#nonnodes").contents().eq(1).siblings().get(), q("nonnodesElement"), "Check for text node siblings" );
 	deepEqual( jQuery("#foo").siblings("form, b").get(), q("form", "floatTest", "lengthtest", "name-tests", "testForm"), "Check for multiple filters" );
+
 	var set = q("sndp", "en", "sap");
 	deepEqual( jQuery("#en, #sndp").siblings().get(), set, "Check for unique results from siblings" );
 	deepEqual( jQuery("#option5a").siblings("option[data-attr]").get(), q("option5c"), "Has attribute selector in siblings (#9261)" );
@@ -605,9 +643,11 @@ test("prevUntil([String])", function() {
 
 test("contents()", function() {
 	expect(12);
+	var ibody, c;
+
 	equal( jQuery("#ap").contents().length, 9, "Check element contents" );
 	ok( jQuery("#iframe").contents()[0], "Check existence of IFrame document" );
-	var ibody = jQuery("#loadediframe").contents()[0].body;
+	ibody = jQuery("#loadediframe").contents()[0].body;
 	ok( ibody, "Check existence of IFrame body" );
 
 	equal( jQuery("span", ibody).text(), "span text", "Find span in IFrame and check its text" );
@@ -630,55 +670,167 @@ test("contents()", function() {
 	equal( jQuery("div", ibody).length, 1, "Check for JS error on add and delete of a table in IFrame" );
 
 	// using contents will get comments regular, text, and comment nodes
-	var c = jQuery("#nonnodes").contents().contents();
+	c = jQuery("#nonnodes").contents().contents();
 	equal( c.length, 1, "Check node,textnode,comment contents is just one" );
 	equal( c[0].nodeValue, "hi", "Check node,textnode,comment contents is just the one from span" );
 });
 
-test("add(String|Element|Array|undefined)", function() {
-	expect( 15 );
-	deepEqual( jQuery("#sndp").add("#en").add("#sap").get(), q("sndp", "en", "sap"), "Check elements from document" );
-	deepEqual( jQuery("#sndp").add( jQuery("#en")[0] ).add( jQuery("#sap") ).get(), q("sndp", "en", "sap"), "Check elements from document" );
+test("sort direction", function() {
+	expect( 12 );
+
+	var elems = jQuery("#ap, #select1 > *, #moretests > form"),
+		methodDirections = {
+			parent: false,
+			parents: true,
+			parentsUntil: true,
+			next: false,
+			prev: false,
+			nextAll: false,
+			prevAll: true,
+			nextUntil: false,
+			prevUntil: true,
+			siblings: false,
+			children: false,
+			contents: false
+		};
+
+	jQuery.each( methodDirections, function( method, reversed ) {
+		var actual = elems[ method ]().get(),
+			forward = jQuery.unique( [].concat( actual ) );
+		deepEqual( actual, reversed ? forward.reverse() : forward, "Correct sort direction for " + method );
+	});
+});
+
+test("add(String selector)", function() {
+	expect( 2 );
+
+	var divs;
+
+	deepEqual(
+		jQuery("#sndp").add("#en").add("#sap").toArray(),
+		q("sndp", "en", "sap"),
+		"Check elements from document"
+	);
+
+	divs = jQuery("<div/>").add("#sndp");
+	ok( divs[0].parentNode, "Sort with the disconnected node last (started with disconnected first)." );
+});
+
+test("add(String selector, String context)", function() {
+	expect( 1 );
+
+	deepEqual(
+		jQuery([]).add("div", "#nothiddendiv").toArray(),
+		q("nothiddendivchild"),
+		"Check elements from document"
+	);
+});
+
+test("add(String html)", function() {
+	expect( 3 );
+
+	var x,
+		divs = jQuery("#sndp").add("<div/>");
+
+	ok( !divs[1].parentNode, "Sort with the disconnected node last." );
+
+
+	x = jQuery([]).add("<p id='x1'>xxx</p>").add("<p id='x2'>xxx</p>");
+	equal( x[0].id, "x1", "Check detached element1" );
+	equal( x[1].id, "x2", "Check detached element2" );
+});
+
+test("add(jQuery)", function() {
+	expect( 4 );
+
+	var x,
+		tmp = jQuery("<div/>");
+
+	x = jQuery([])
+	.add(
+		jQuery("<p id='x1'>xxx</p>").appendTo(tmp)
+	)
+	.add(
+		jQuery("<p id='x2'>xxx</p>").appendTo(tmp)
+	);
+
+	equal( x[0].id, "x1", "Check element1 in detached parent" );
+	equal( x[1].id, "x2", "Check element2 in detached parent" );
+
+	x = jQuery([])
+	.add(
+		jQuery("<p id='x1'>xxx</p>")
+	)
+	.add(
+		jQuery("<p id='x2'>xxx</p>")
+	);
+
+	equal( x[0].id, "x1", "Check detached element1" );
+	equal( x[1].id, "x2", "Check detached element2" );
+});
+
+test("add(Element)", function() {
+	expect( 2 );
+
+	var x,
+		tmp = jQuery("<div/>");
+
+	x = jQuery([]).add(jQuery("<p id='x1'>xxx</p>").appendTo(tmp)[0]).add(jQuery("<p id='x2'>xxx</p>").appendTo(tmp)[0]);
+	equal( x[0].id, "x1", "Check on-the-fly element1" );
+	equal( x[1].id, "x2", "Check on-the-fly element2" );
+});
+
+test("add(Array elements)", function() {
+	expect( 1 );
+
+	deepEqual(
+		jQuery("#sndp").add( jQuery("#en")[0] ).add( jQuery("#sap") ).toArray(),
+		q("sndp", "en", "sap"),
+		"Check elements from document"
+	);
+});
+
+test("add(Window)", function() {
+	expect( 1 );
+
+	var frame1 = document.createElement( "iframe" ),
+		frame2 = document.createElement( "iframe" );
+
+	// This increases window.length and sets window[i] available
+	document.body.appendChild( frame1 );
+	document.body.appendChild( frame2 );
+
+	// Window is tricky because it is a lot like an array, even Array#slice will
+	// turn it into a multi-item array.
+	equal( jQuery([]).add( window ).length, 1, "Add a window" );
+
+	document.body.removeChild( frame1 );
+	document.body.removeChild( frame2 );
+});
+
+test("add(NodeList|undefined|HTMLFormElement|HTMLSelectElement)", function() {
+	expect( 4 );
+
+	var ps, notDefined;
+
+	ps = document.getElementsByTagName("p");
+
+	equal( jQuery([]).add(ps).length, ps.length, "Add a NodeList" );
+
+	equal( jQuery([]).add(notDefined).length, 0, "Adding undefined adds nothing" );
+
+	equal( jQuery([]).add( document.getElementById("form") ).length, 1, "Add a form" );
+	equal( jQuery([]).add( document.getElementById("select1") ).length, 1, "Add a select" );
 
 	// We no longer support .add(form.elements), unfortunately.
 	// There is no way, in browsers, to reliably determine the difference
 	// between form.elements and form - and doing .add(form) and having it
 	// add the form elements is way to unexpected, so this gets the boot.
-	// ok( jQuery([]).add(jQuery("#form")[0].elements).length >= 13, "Check elements from array" );
+	//ok( jQuery([]).add(jQuery("#form")[0].elements).length >= 13, "Check elements from array" );
 
 	// For the time being, we're discontinuing support for jQuery(form.elements) since it's ambiguous in IE
 	// use jQuery([]).add(form.elements) instead.
 	//equal( jQuery([]).add(jQuery("#form")[0].elements).length, jQuery(jQuery("#form")[0].elements).length, "Array in constructor must equals array in add()" );
-
-	var divs = jQuery("<div/>").add("#sndp");
-	ok( divs[0].parentNode, "Sort with the disconnected node last (started with disconnected first)." );
-
-	divs = jQuery("#sndp").add("<div/>");
-	ok( !divs[1].parentNode, "Sort with the disconnected node last." );
-
-	var tmp = jQuery("<div/>");
-
-	var x = jQuery([]).add(jQuery("<p id='x1'>xxx</p>").appendTo(tmp)).add(jQuery("<p id='x2'>xxx</p>").appendTo(tmp));
-	equal( x[0].id, "x1", "Check on-the-fly element1" );
-	equal( x[1].id, "x2", "Check on-the-fly element2" );
-
-	x = jQuery([]).add(jQuery("<p id='x1'>xxx</p>").appendTo(tmp)[0]).add(jQuery("<p id='x2'>xxx</p>").appendTo(tmp)[0]);
-	equal( x[0].id, "x1", "Check on-the-fly element1" );
-	equal( x[1].id, "x2", "Check on-the-fly element2" );
-
-	x = jQuery([]).add(jQuery("<p id='x1'>xxx</p>")).add(jQuery("<p id='x2'>xxx</p>"));
-	equal( x[0].id, "x1", "Check on-the-fly element1" );
-	equal( x[1].id, "x2", "Check on-the-fly element2" );
-
-	x = jQuery([]).add("<p id='x1'>xxx</p>").add("<p id='x2'>xxx</p>");
-	equal( x[0].id, "x1", "Check on-the-fly element1" );
-	equal( x[1].id, "x2", "Check on-the-fly element2" );
-
-	var notDefined;
-	equal( jQuery([]).add(notDefined).length, 0, "Check that undefined adds nothing" );
-
-	equal( jQuery([]).add( document.getElementById("form") ).length, 1, "Add a form" );
-	equal( jQuery([]).add( document.getElementById("select1") ).length, 1, "Add a select" );
 });
 
 test("add(String, Context)", function() {
@@ -705,14 +857,27 @@ test("eq('-1') #10616", function() {
 
 test("index(no arg) #10977", function() {
 	expect(2);
+	var $list, fragment, div;
 
-	var $list = jQuery("<ul id='indextest'><li class='zero'>THIS ONE</li><li class='one'>a</li><li class='two'>b</li><li class='three'>c</li></ul>");
+	$list = jQuery("<ul id='indextest'><li class='zero'>THIS ONE</li><li class='one'>a</li><li class='two'>b</li><li class='three'>c</li></ul>");
 	jQuery("#qunit-fixture").append( $list );
 	strictEqual ( jQuery( "#indextest li.zero" ).first().index() , 0, "No Argument Index Check" );
 	$list.remove();
 
-	var fragment = document.createDocumentFragment(),
-		div = fragment.appendChild( document.createElement("div") );
+	fragment = document.createDocumentFragment();
+	div = fragment.appendChild( document.createElement("div") );
 
 	equal( jQuery( div ).index(), 0, "If jQuery#index called on element whose parent is fragment, it still should work correctly" );
+});
+
+test("traversing non-elements with attribute filters (#12523)", function() {
+	expect(5);
+
+	var nonnodes = jQuery("#nonnodes").contents();
+
+	equal( nonnodes.filter("[id]").length, 1, ".filter" );
+	equal( nonnodes.find("[id]").length, 0, ".find" );
+	strictEqual( nonnodes.is("[id]"), true, ".is" );
+	deepEqual( nonnodes.closest("[id='nonnodes']").get(), q("nonnodes"), ".closest" );
+	deepEqual( nonnodes.parents("[id='nonnodes']").get(), q("nonnodes"), ".parents" );
 });

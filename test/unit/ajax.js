@@ -182,17 +182,24 @@ module( "ajax", {
 		});
 	});
 
-	ajaxTest( "jQuery.ajax() - headers", 4, {
+	ajaxTest( "jQuery.ajax() - headers", 5, {
 		setup: function() {
 			jQuery( document ).ajaxSend(function( evt, xhr ) {
 				xhr.setRequestHeader( "ajax-send", "test" );
 			});
 		},
-		url: url("data/headers.php?keys=siMPle_SometHing-elsE_OthEr_ajax-send"),
+		url: url("data/headers.php?keys=siMPle_SometHing-elsE_OthEr_Nullable_undefined_Empty_ajax-send"),
 		headers: {
 			"siMPle": "value",
 			"SometHing-elsE": "other value",
-			"OthEr": "something else"
+			"OthEr": "something else",
+			"Nullable": null,
+			"undefined": undefined
+
+			// Support: Firefox
+			// Not all browsers allow empty-string headers
+			// https://bugzilla.mozilla.org/show_bug.cgi?id=815299
+			//"Empty": ""
 		},
 		success: function( data, _, xhr ) {
 			var i, emptyHeader,
@@ -201,12 +208,13 @@ module( "ajax", {
 				}),
 				tmp = [];
 			for ( i in requestHeaders ) {
-				tmp.push( i, ": ", requestHeaders[ i ], "\n" );
+				tmp.push( i, ": ", requestHeaders[ i ] + "", "\n" );
 			}
 			tmp = tmp.join("");
 
 			strictEqual( data, tmp, "Headers were sent" );
 			strictEqual( xhr.getResponseHeader("Sample-Header"), "Hello World", "Sample header received" );
+			ok( data.indexOf( "undefined" ) < 0 , "Undefined header value was not sent" );
 
 			emptyHeader = xhr.getResponseHeader("Empty-Header");
 			if ( emptyHeader === null ) {
@@ -243,7 +251,9 @@ module( "ajax", {
 			url: url("data/headers.php?keys=content-type"),
 			contentType: false,
 			success: function( data ) {
-				strictEqual( data, "content-type: \n", "Test content-type is not sent when options.contentType===false" );
+				// Some server/interpreter combinations always supply a Content-Type to scripts
+				data = data || "content-type: \n";
+				strictEqual( data, "content-type: \n", "Test content-type is not set when options.contentType===false" );
 			}
 		}
 	]);
@@ -503,10 +513,10 @@ module( "ajax", {
 
 	ajaxTest( "jQuery.ajax() - beforeSend", 1, {
 		url: url("data/name.html"),
-		beforeSend: function( xml ) {
+		beforeSend: function() {
 			this.check = true;
 		},
-		success: function( data ) {
+		success: function() {
 			ok( this.check, "check beforeSend was executed" );
 		}
 	});
@@ -576,14 +586,14 @@ module( "ajax", {
 	});
 
 	asyncTest( "jQuery.ajax(), jQuery.get[Script|JSON](), jQuery.post(), pass-through request object", 8, function() {
-		var target = "data/name.html";
-		var successCount = 0;
-		var errorCount = 0;
-		var errorEx = "";
-		var success = function() {
-			successCount++;
-		};
-		jQuery( document ).on( "ajaxError.passthru", function( e, xml, s, ex ) {
+		var target = "data/name.html",
+			successCount = 0,
+			errorCount = 0,
+			errorEx = "",
+			success = function() {
+				successCount++;
+			};
+		jQuery( document ).on( "ajaxError.passthru", function( e, xml ) {
 			errorCount++;
 			errorEx += ": " + xml.status;
 		});
@@ -847,7 +857,7 @@ module( "ajax", {
 		},
 		url: window.location.href.replace( /[^\/]*$/, "" ) + "data/test.js",
 		dataType: "script",
-		success: function( data ) {
+		success: function() {
 			strictEqual( window["testBar"], "bar", "Script results returned (GET, no callback)" );
 		}
 	});
@@ -871,7 +881,7 @@ module( "ajax", {
 		},
 		url: window.location.href.replace( /[^\/]*$/, "" ).replace( /^.*?\/\//, "//" ) + "data/test.js",
 		dataType: "script",
-		success: function( data ) {
+		success: function() {
 			strictEqual( window["testBar"], "bar", "Script results returned (GET, no callback)" );
 		}
 	});
@@ -1045,7 +1055,6 @@ module( "ajax", {
 			ok( jqXHR.statusText === "Hello" || jqXHR.statusText === "OK", "jqXHR status text ok for success (" + jqXHR.statusText + ")" );
 			jQuery.ajax( url("data/statusText.php?status=404&text=World") ).fail(function( jqXHR, statusText ) {
 				strictEqual( statusText, "error", "callback status text ok for error" );
-				// ok( jqXHR.statusText === "World" || jQuery.browser.safari && jqXHR.statusText === "Not Found", "jqXHR status text ok for error (" + jqXHR.statusText + ")" );
 				start();
 			});
 		});
@@ -1251,9 +1260,10 @@ module( "ajax", {
 	});
 
 	test( "#7531 - jQuery.ajax() - Location object as url", 1, function () {
-		var success = false;
+		var xhr,
+			success = false;
 		try {
-			var xhr = jQuery.ajax({
+			xhr = jQuery.ajax({
 				url: window.location
 			});
 			success = true;
@@ -1269,7 +1279,7 @@ module( "ajax", {
 			url: "data/jsonp.php",
 			dataType: "jsonp",
 			crossDomain: crossDomain,
-			beforeSend: function( jqXHR, s ) {
+			beforeSend: function() {
 				strictEqual( this.cache, false, "cache must be false on JSON request" );
 				return false;
 			},
@@ -1499,11 +1509,78 @@ module( "ajax", {
 		}
 	});
 
+	ajaxTest( "#13922 - jQuery.ajax() - converter is bypassed for HEAD requests", 3, {
+		url: "data/json.php",
+		method: "HEAD",
+		data: {
+			header: "yes"
+		},
+		converters: {
+			"text json": function() {
+				throw "converter was called";
+			}
+		},
+		success: function( data, status ) {
+			ok( true, "success" );
+			strictEqual( status, "nocontent", "data is undefined" );
+			strictEqual( data, undefined, "data is undefined" );
+		},
+		error: function( _, status, error ) {
+			ok( false, "error" );
+			strictEqual( status, "parsererror", "Parser Error" );
+			strictEqual( error, "converter was called", "Converter was called" );
+		}
+	} );
+
+	// Support: Chrome 31.
+	// Chrome 31 doesn't fire Ajax requests in beforeunload event handler.
+	// There is no way for us to workaround it and it's been fixed in Chrome 32
+	// so let's just blacklist Chrome 31 as long as it's in TestSwarm.
+	// See https://code.google.com/p/chromium/issues/detail?id=321241
+	if ( navigator.userAgent.indexOf( " Chrome/31." ) === -1 ) {
+		testIframeWithCallback( "#14379 - jQuery.ajax() on unload", "ajax/onunload.html", function( status ) {
+			expect( 1 );
+			strictEqual( status, "success", "Request completed" );
+		});
+	}
+
+	ajaxTest( "#14683 - jQuery.ajax() - Exceptions thrown synchronously by xhr.send should be caught", 4, [
+		{
+			url: "data/params_html.php",
+			method: "POST",
+			data: {
+				toString: function() {
+					throw "Can't parse";
+				}
+			},
+			processData: false,
+			done: function( data ) {
+				ok( false, "done: " + data );
+			},
+			fail: function( jqXHR, status, error ) {
+				ok( true, "exception caught: " + error );
+				strictEqual( jqXHR.status, 0, "proper status code" );
+				strictEqual( status, "error", "proper status" );
+			}
+		},
+		{
+			url: "http://domain.org:80d",
+			done: function( data ) {
+				ok( false, "done: " + data );
+			},
+			fail: function( _, status, error ) {
+				ok( true, "fail: " + status + " - " + error );
+			}
+		}
+	]);
+
 //----------- jQuery.ajaxPrefilter()
 
 	ajaxTest( "jQuery.ajaxPrefilter() - abort", 1, {
+		dataType: "prefix",
 		setup: function() {
-			jQuery.ajaxPrefilter(function( options, _, jqXHR ) {
+			// Ensure prefix does not throw an error
+			jQuery.ajaxPrefilter("+prefix", function( options, _, jqXHR ) {
 				if ( options.abortInPrefilter ) {
 					jqXHR.abort();
 				}
@@ -1535,12 +1612,12 @@ module( "ajax", {
 		var passed = 0,
 			pass = function() {
 				ok( passed++ < 2, "Error callback executed" );
-				if ( passed == 2 ) {
+				if ( passed === 2 ) {
 					jQuery( document ).off("ajaxError.setupTest");
 					start();
 				}
 			},
-			fail = function( a, b, c ) {
+			fail = function( a, b ) {
 				ok( false, "Check for timeout failed " + a + " " + b );
 				start();
 			};
@@ -1663,7 +1740,7 @@ module( "ajax", {
 
 	asyncTest( "jQuery.getScript( String, Function ) - with callback", 2, function() {
 		Globals.register("testBar");
-		jQuery.getScript( url("data/test.js"), function( data, _, jqXHR ) {
+		jQuery.getScript( url("data/test.js"), function() {
 			strictEqual( window["testBar"], "bar", "Check if script was evaluated" );
 			start();
 		});
@@ -1800,8 +1877,7 @@ module( "ajax", {
 	});
 
 	asyncTest( "jQuery.fn.load() - callbacks get the correct parameters", 8, function() {
-		var slice = [].slice,
-			completeArgs = {};
+		var completeArgs = {};
 
 		jQuery.ajaxSetup({
 			success: function( _, status, jqXHR ) {

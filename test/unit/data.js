@@ -51,8 +51,19 @@ test( "jQuery._data & _removeData, expected returns", function() {
 	);
 });
 
-function dataTests (elem) {
-	var oldCacheLength, dataObj, internalDataObj, expected, actual;
+test( "jQuery.hasData no side effects", function() {
+	expect(1);
+	var obj = {};
+
+	jQuery.hasData( obj );
+
+	equal( Object.getOwnPropertyNames( obj ).length, 0,
+		"No data expandos where added when calling jQuery.hasData(o)"
+	);
+});
+
+function dataTests( elem ) {
+	var dataObj, internalDataObj;
 
 	equal( jQuery.data(elem, "foo"), undefined, "No data exists initially" );
 	strictEqual( jQuery.hasData(elem), false, "jQuery.hasData agrees no data exists initially" );
@@ -118,30 +129,30 @@ function dataTests (elem) {
 test("jQuery.data(div)", 25, function() {
 	var div = document.createElement("div");
 
-	dataTests(div);
+	dataTests( div );
 
 	// We stored one key in the private data
 	// assert that nothing else was put in there, and that that
 	// one stayed there.
-	QUnit.expectJqData(div, "foo");
+	QUnit.expectJqData( div, "foo" );
 });
 
 test("jQuery.data({})", 25, function() {
-	dataTests({});
+	dataTests( {} );
 });
 
 test("jQuery.data(window)", 25, function() {
 	// remove bound handlers from window object to stop potential false positives caused by fix for #5280 in
 	// transports/xhr.js
-	jQuery(window).off("unload");
+	jQuery( window ).off( "unload" );
 
-	dataTests(window);
+	dataTests( window );
 });
 
 test("jQuery.data(document)", 25, function() {
-	dataTests(document);
+	dataTests( document );
 
-	QUnit.expectJqData(document, "foo");
+	QUnit.expectJqData( document, "foo" );
 });
 
 test("jQuery.data(<embed>)", 25, function() {
@@ -159,37 +170,30 @@ test("jQuery.data(object/flash)", 25, function() {
 	dataTests( flash );
 });
 
-test("jQuery.data(object/applet)", 25, function() {
-	var applet = document.createElement("object");
-	applet.setAttribute( "classid", "clsid:8AD9C840-044E-11D1-B3E9-00805F499D93" );
-
-	dataTests( applet );
-});
-
-test("jQuery.data(comment)", 25, function() {
-	dataTests( document.createComment("") );
-});
-
-test("jQuery.data(text)", 25, function() {
-	dataTests( document.createTextNode("") );
+// attempting to access the data of an undefined jQuery element should be undefined
+test("jQuery().data() === undefined (#14101)", 2, function() {
+	strictEqual(jQuery().data(), undefined);
+	strictEqual(jQuery().data("key"), undefined);
 });
 
 test(".data()", function() {
 	expect(5);
 
-	var div = jQuery("#foo");
+	var div, dataObj, nodiv, obj;
+
+	div = jQuery("#foo");
 	strictEqual( div.data("foo"), undefined, "Make sure that missing result is undefined" );
 	div.data("test", "success");
 
-	var dataObj = div.data();
+	dataObj = div.data();
 
 	deepEqual( dataObj, {test: "success"}, "data() returns entire data object with expected properties" );
 	strictEqual( div.data("foo"), undefined, "Make sure that missing result is still undefined" );
 
-	var nodiv = jQuery("#unfound");
+	nodiv = jQuery("#unfound");
 	equal( nodiv.data(), null, "data() on empty set returns null" );
 
-	var obj = { foo: "bar" };
+	obj = { foo: "bar" };
 	jQuery(obj).data("foo", "baz");
 
 	dataObj = jQuery.extend(true, {}, jQuery(obj).data());
@@ -197,7 +201,7 @@ test(".data()", function() {
 	deepEqual( dataObj, { "foo": "baz" }, "Retrieve data object from a wrapped JS object (#7524)" );
 });
 
-var testDataTypes = function( $obj ) {
+function testDataTypes( $obj ) {
 	jQuery.each({
 		"null": null,
 		"true": true,
@@ -215,7 +219,7 @@ var testDataTypes = function( $obj ) {
 	}, function( type, value ) {
 		strictEqual( $obj.data( "test", value ).data("test"), value, "Data set to " + type );
 	});
-};
+}
 
 test("jQuery(Element).data(String, Object).data(String)", function() {
 	expect( 18 );
@@ -246,9 +250,25 @@ test("jQuery(plain Object).data(String, Object).data(String)", function() {
 	deepEqual( $obj[0], { exists: true }, "removeData does not clear the object" );
 });
 
+test(".data(object) does not retain references. #13815", function() {
+	expect( 2 );
+
+	var $divs = jQuery("<div></div><div></div>").appendTo("#qunit-fixture");
+
+	$divs.data({ "type": "foo" });
+	$divs.eq( 0 ).data( "type", "bar" );
+
+	equal( $divs.eq( 0 ).data("type"), "bar", "Correct updated value" );
+	equal( $divs.eq( 1 ).data("type"), "foo", "Original value retained" );
+});
+
 test("data-* attributes", function() {
-	expect(40);
-	var div = jQuery("<div>"),
+	expect( 43 );
+
+	var prop, i, l, metadata, elem,
+		obj, obj2, check, num, num2,
+		parseJSON = jQuery.parseJSON,
+		div = jQuery("<div>"),
 		child = jQuery("<div data-myobj='old data' data-ignored=\"DOM\" data-other='test'></div>"),
 		dummy = jQuery("<div data-myobj='old data' data-ignored=\"DOM\" data-other='test'></div>");
 
@@ -274,16 +294,15 @@ test("data-* attributes", function() {
 	child.data("ignored", "cache");
 	equal( child.data("ignored"), "cache", "Cached data used before DOM data-* fallback");
 
-	var prop,
-			obj = child.data(),
-			obj2 = dummy.data(),
-			check = [ "myobj", "ignored", "other" ],
-			num = 0,
-			num2 = 0;
+	obj = child.data();
+	obj2 = dummy.data();
+	check = [ "myobj", "ignored", "other" ];
+	num = 0;
+	num2 = 0;
 
 	dummy.remove();
 
-	for ( var i = 0, l = check.length; i < l; i++ ) {
+	for ( i = 0, l = check.length; i < l; i++ ) {
 		ok( obj[ check[i] ], "Make sure data- property exists when calling data-." );
 		ok( obj2[ check[i] ], "Make sure data- property exists when calling data-." );
 	}
@@ -304,6 +323,13 @@ test("data-* attributes", function() {
 
 	equal( child.data("other"), "test", "Make sure value was pulled in properly from a .data()." );
 
+	// attribute parsing
+	i = 0;
+	jQuery.parseJSON = function() {
+		i++;
+		return parseJSON.apply( this, arguments );
+	};
+
 	child
 		.attr("data-true", "true")
 		.attr("data-false", "false")
@@ -317,6 +343,8 @@ test("data-* attributes", function() {
 		.attr("data-bigassnum", "123456789123456789123456789")
 		.attr("data-badjson", "{123}")
 		.attr("data-badjson2", "[abc]")
+		.attr("data-notjson", " {}")
+		.attr("data-notjson2", "[] ")
 		.attr("data-empty", "")
 		.attr("data-space", " ")
 		.attr("data-null", "null")
@@ -324,21 +352,33 @@ test("data-* attributes", function() {
 
 	strictEqual( child.data("true"), true, "Primitive true read from attribute");
 	strictEqual( child.data("false"), false, "Primitive false read from attribute");
-	strictEqual( child.data("five"), 5, "Primitive number read from attribute");
-	strictEqual( child.data("point"), 5.5, "Primitive number read from attribute");
-	strictEqual( child.data("pointe"), "5.5E3", "Floating point exponential number read from attribute");
-	strictEqual( child.data("grande"), "5.574E9", "Big exponential number read from attribute");
-	strictEqual( child.data("hexadecimal"), "0x42", "Hexadecimal number read from attribute");
-	strictEqual( child.data("pointbad"), "5..5", "Bad number read from attribute");
-	strictEqual( child.data("pointbad2"), "-.", "Bad number read from attribute");
-	strictEqual( child.data("bigassnum"), "123456789123456789123456789", "Bad bigass number read from attribute");
-	strictEqual( child.data("badjson"), "{123}", "Bad number read from attribute");
-	strictEqual( child.data("badjson2"), "[abc]", "Bad number read from attribute");
+	strictEqual( child.data("five"), 5, "Integer read from attribute");
+	strictEqual( child.data("point"), 5.5, "Floating-point number read from attribute");
+	strictEqual( child.data("pointe"), "5.5E3",
+		"Exponential-notation number read from attribute as string");
+	strictEqual( child.data("grande"), "5.574E9",
+		"Big exponential-notation number read from attribute as string");
+	strictEqual( child.data("hexadecimal"), "0x42",
+		"Hexadecimal number read from attribute as string");
+	strictEqual( child.data("pointbad"), "5..5",
+		"Extra-point non-number read from attribute as string");
+	strictEqual( child.data("pointbad2"), "-.",
+		"No-digit non-number read from attribute as string");
+	strictEqual( child.data("bigassnum"), "123456789123456789123456789",
+		"Bad bigass number read from attribute as string");
+	strictEqual( child.data("badjson"), "{123}", "Bad JSON object read from attribute as string");
+	strictEqual( child.data("badjson2"), "[abc]", "Bad JSON array read from attribute as string");
+	strictEqual( child.data("notjson"), " {}",
+		"JSON object with leading non-JSON read from attribute as string");
+	strictEqual( child.data("notjson2"), "[] ",
+		"JSON array with trailing non-JSON read from attribute as string");
 	strictEqual( child.data("empty"), "", "Empty string read from attribute");
-	strictEqual( child.data("space"), " ", "Empty string read from attribute");
+	strictEqual( child.data("space"), " ", "Whitespace string read from attribute");
 	strictEqual( child.data("null"), null, "Primitive null read from attribute");
 	strictEqual( child.data("string"), "test", "Typical string read from attribute");
+	equal( i, 2, "Correct number of JSON parse attempts when reading from attributes" );
 
+	jQuery.parseJSON = parseJSON;
 	child.remove();
 
 	// tests from metadata plugin
@@ -365,8 +405,8 @@ test("data-* attributes", function() {
 		}
 	}
 
-	var metadata = "<ol><li class='test test2' data-foo='bar' data-bar='baz' data-arr='[1,2]'>Some stuff</li><li class='test test2' data-test='bar' data-bar='baz'>Some stuff</li><li class='test test2' data-zoooo='bar' data-bar='{\"test\":\"baz\"}'>Some stuff</li><li class='test test2' data-number=true data-stuff='[2,8]'>Some stuff</li></ol>",
-		elem = jQuery(metadata).appendTo("#qunit-fixture");
+	metadata = "<ol><li class='test test2' data-foo='bar' data-bar='baz' data-arr='[1,2]'>Some stuff</li><li class='test test2' data-test='bar' data-bar='baz'>Some stuff</li><li class='test test2' data-zoooo='bar' data-bar='{\"test\":\"baz\"}'>Some stuff</li><li class='test test2' data-number=true data-stuff='[2,8]'>Some stuff</li></ol>";
+	elem = jQuery(metadata).appendTo("#qunit-fixture");
 
 	elem.find("li").each(testData);
 	elem.remove();
@@ -375,14 +415,16 @@ test("data-* attributes", function() {
 test(".data(Object)", function() {
 	expect(4);
 
-	var div = jQuery("<div/>");
+	var obj, jqobj,
+		div = jQuery("<div/>");
 
 	div.data({ "test": "in", "test2": "in2" });
 	equal( div.data("test"), "in", "Verify setting an object in data" );
 	equal( div.data("test2"), "in2", "Verify setting an object in data" );
 
-	var obj = {test:"unset"},
-		jqobj = jQuery(obj);
+	obj = {test:"unset"};
+	jqobj = jQuery(obj);
+
 	jqobj.data("test", "unset");
 	jqobj.data({ "test": "in", "test2": "in2" });
 	equal( jQuery.data(obj)["test"], "in", "Verify setting an object on an object extends the data object" );
@@ -394,7 +436,9 @@ test(".data(Object)", function() {
 
 test("jQuery.removeData", function() {
 	expect(10);
-	var div = jQuery("#foo")[0];
+
+	var obj,
+		div = jQuery("#foo")[0];
 	jQuery.data(div, "test", "testing");
 	jQuery.removeData(div, "test");
 	equal( jQuery.data(div, "test"), undefined, "Check removal of data" );
@@ -426,7 +470,7 @@ test("jQuery.removeData", function() {
 	ok( !jQuery.data(div, "test3 test4"), "Multiple delete with spaces deleted key with exact name" );
 	ok( jQuery.data(div, "test3"), "Left the partial matched key alone" );
 
-	var obj = {};
+	obj = {};
 	jQuery.data(obj, "test", "testing");
 	equal( jQuery(obj).data("test"), "testing", "verify data on plain object");
 	jQuery.removeData(obj, "test");
@@ -514,6 +558,17 @@ test(".data should not miss preset data-* w/ hyphenated property names", functio
 	});
 });
 
+test("jQuery.data should not miss data-* w/ hyphenated property names #14047", function() {
+
+	expect(1);
+
+	var div = jQuery("<div/>");
+
+	div.data( "foo-bar", "baz" );
+
+	equal( jQuery.data(div[0], "foo-bar"), "baz", "data with property 'foo-bar' was correctly found");
+});
+
 test(".data should not miss attr() set data-* with hyphenated property names", function() {
 	expect(2);
 
@@ -598,7 +653,36 @@ test(".data supports interoperable removal of hyphenated/camelCase properties", 
 	});
 });
 
-test( ".removeData supports removal of hyphenated properties via array (#12786)", function( assert ) {
+test(".data supports interoperable removal of properties SET TWICE #13850", function() {
+	var div = jQuery("<div>").appendTo("#qunit-fixture"),
+		datas = {
+			"non-empty": "a string",
+			"empty-string": "",
+			"one-value": 1,
+			"zero-value": 0,
+			"an-array": [],
+			"an-object": {},
+			"bool-true": true,
+			"bool-false": false,
+			// JSHint enforces double quotes,
+			// but JSON strings need double quotes to parse
+			// so we need escaped double quotes here
+			"some-json": "{ \"foo\": \"bar\" }"
+		};
+
+	expect( 9 );
+
+	jQuery.each( datas, function( key, val ) {
+		div.data( key, val );
+		div.data( key, val );
+
+		div.removeData( key );
+
+		equal( div.data( key ), undefined, "removal: " + key );
+	});
+});
+
+test( ".removeData supports removal of hyphenated properties via array (#12786)", function() {
 	expect( 4 );
 
 	var div, plain, compare;
@@ -680,4 +764,40 @@ test(".data doesn't throw when calling selection is empty. #13551", function() {
 	} catch ( e ) {
 		ok( false, e.message );
 	}
+});
+
+test("jQuery.acceptData", 11, function() {
+	var flash, applet;
+
+	ok( jQuery.acceptData( document ), "document" );
+	ok( jQuery.acceptData( document.documentElement ), "documentElement" );
+	ok( jQuery.acceptData( {} ), "object" );
+	ok( jQuery.acceptData( document.createElement( "embed" ) ), "embed" );
+	ok( jQuery.acceptData( document.createElement( "applet" ) ), "applet" );
+
+	flash = document.createElement( "object" );
+	flash.setAttribute( "classid", "clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" );
+	ok( jQuery.acceptData( flash ), "flash" );
+
+	applet = document.createElement( "object" );
+	applet.setAttribute( "classid", "clsid:8AD9C840-044E-11D1-B3E9-00805F499D93" );
+	ok( jQuery.acceptData( applet ), "applet" );
+
+	ok( !jQuery.acceptData( document.createComment( "" ) ), "comment" );
+	ok( !jQuery.acceptData( document.createTextNode( "" ) ), "text" );
+	ok( !jQuery.acceptData( document.createDocumentFragment() ), "documentFragment" );
+
+	ok( jQuery.acceptData(
+		jQuery( "#form" ).append( "<input id='nodeType'/><input id='nodeName'/>" )[ 0 ] ),
+		"form with aliased DOM properties" );
+});
+
+test("Check proper data removal of non-element descendants nodes (#8335)", 1, function() {
+	var div = jQuery("<div>text</div>"),
+		text = div.contents();
+
+	text.data( "test", "test" ); // This should be a noop.
+	div.remove();
+
+	ok( !text.data("test"), "Be sure data is not stored in non-element" );
 });
